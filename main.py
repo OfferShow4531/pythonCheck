@@ -10,11 +10,11 @@ def main():
     root = tk.Tk()
     root.geometry("800x600")
 
-    main_frame = tk.Frame(root, bg='white')
+    main_frame = tk.Frame(root, bg='Slategray2')
     main_frame.pack(expand=True, fill='both')
 
     # Первое внутреннее окно
-    inner_frame = tk.Frame(main_frame, bg='white')
+    inner_frame = tk.Frame(main_frame, bg='Slategray1')
     inner_frame.pack(expand=True, fill='both', padx=10, pady=(10, 70))  # Увеличиваем нижний отступ для кнопок
 
     # Полоса серого цвета сверху
@@ -22,24 +22,24 @@ def main():
     top_bar.pack(fill='x')
 
     # Разделение на два отдельных окна
-    left_frame = tk.Frame(inner_frame, bg='white')
+    left_frame = tk.Frame(inner_frame, bg='Slategray1')
     left_frame.pack(side='left', expand=True, fill='both')
 
-    right_frame = tk.Frame(inner_frame, bg='white')
+    right_frame = tk.Frame(inner_frame, bg='Slategray1')
     right_frame.pack(side='right', expand=True, fill='both')
 
     # left_frame
-    label_current_dataset = tk.Label(left_frame, background='white', text="Current Data Set", font=('Arial', 12, 'bold italic'), anchor='w', highlightthickness=0)
+    label_current_dataset = tk.Label(left_frame, background='Slategray1', text="Current Data Set", font=('Arial', 12, 'bold italic'), anchor='w', highlightthickness=0)
     label_current_dataset.pack(fill='x', padx=10, pady=(10, 5))
 
-    label_count_of_rows = tk.Label(left_frame, background='white', text="Count of Rows", font=('Arial', 12, 'bold italic'), anchor='w', highlightthickness=0)
+    label_count_of_rows = tk.Label(left_frame, background='Slategray1', text="Count of Rows", font=('Arial', 12, 'bold italic'), anchor='w', highlightthickness=0)
     label_count_of_rows.pack(fill='x', padx=10, pady=(5, 10))
 
     points_frame = tk.Frame(left_frame, bg='white')
     points_frame.pack()
 
     for _ in range(5):
-        point = tk.Label(points_frame, background='white', text='•', font=('Arial', 30), padx=12, highlightthickness=0)
+        point = tk.Label(points_frame, background='Slategray1', text='•', font=('Arial', 30), padx=30, highlightthickness=0)
         point.pack(side='left')
 
 
@@ -57,7 +57,7 @@ def main():
     listbox.pack(expand=True, fill='both', padx=10, pady=10)
 
     # Кнопки с отступами между ними
-    buttons_frame = tk.Frame(main_frame, bg='white')  # Помещаем кнопки в основной фрейм
+    buttons_frame = tk.Frame(main_frame, bg='Slategray2')  # Помещаем кнопки в основной фрейм
     buttons_frame.pack(fill='x', pady=(0, 10))  # Увеличиваем верхний отступ для кнопок
 
     select_file_button = tk.Button(buttons_frame, text="SELECT FILE", command=lambda: select_file(main_frame, listbox), width=30, height=3, font=('Arial', 12, 'bold italic'), bg='gray', fg='white', bd=0, highlightthickness=0)
