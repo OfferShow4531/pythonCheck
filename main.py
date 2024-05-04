@@ -4,42 +4,70 @@ from tkinter import filedialog
 import pyVistaPlot as pvl
 
 
+import tkinter as tk
+
 def main():
     root = tk.Tk()
-
     root.geometry("800x600")
 
     main_frame = tk.Frame(root, bg='white')
     main_frame.pack(expand=True, fill='both')
 
-    # Поле Entry для ввода названия поля для удаления из датасета
-    entry_label = tk.Label(main_frame, text="Введите поле для удаления из датасета:", font=12, background='green', foreground='white')
-    entry_label.pack(pady=10)
+    # Первое внутреннее окно
+    inner_frame = tk.Frame(main_frame, bg='white')
+    inner_frame.pack(expand=True, fill='both', padx=10, pady=(10, 70))  # Увеличиваем нижний отступ для кнопок
 
-    entry_field = tk.Entry(main_frame, width=60, font=12, background='yellow', foreground='black')
-    entry_field.pack()
+    # Полоса серого цвета сверху
+    top_bar = tk.Frame(inner_frame, bg='gray', height=15)
+    top_bar.pack(fill='x')
 
-    # Фрейм для отображения head загруженного датасета
-    data_frame = tk.Frame(main_frame, bg='white')
-    data_frame.pack(expand=True, fill='both', pady=10)
+    # Разделение на два отдельных окна
+    left_frame = tk.Frame(inner_frame, bg='white')
+    left_frame.pack(side='left', expand=True, fill='both')
 
-    # Создаем Listbox для отображения данных
-    listbox = tk.Listbox(data_frame, width=50, font=10)
+    right_frame = tk.Frame(inner_frame, bg='white')
+    right_frame.pack(side='right', expand=True, fill='both')
+
+    # left_frame
+    label_current_dataset = tk.Label(left_frame, background='white', text="Current Data Set", font=('Arial', 12, 'bold italic'), anchor='w', highlightthickness=0)
+    label_current_dataset.pack(fill='x', padx=10, pady=(10, 5))
+
+    label_count_of_rows = tk.Label(left_frame, background='white', text="Count of Rows", font=('Arial', 12, 'bold italic'), anchor='w', highlightthickness=0)
+    label_count_of_rows.pack(fill='x', padx=10, pady=(5, 10))
+
+    points_frame = tk.Frame(left_frame, bg='white')
+    points_frame.pack()
+
+    for _ in range(5):
+        point = tk.Label(points_frame, background='white', text='•', font=('Arial', 30), padx=12, highlightthickness=0)
+        point.pack(side='left')
+
+
+    entry_field = tk.Entry(left_frame, font=14, background='gray', foreground='white')
+    entry_field.pack(fill='x', padx=10, pady=30)
+
+    reset_button = tk.Button(left_frame, text="Reset", width=25, height=2, font=('Arial', 12, 'bold italic'), bg='gray', fg='white', bd=0, highlightthickness=0)
+    reset_button.pack(padx=10, pady=10)
+
+    load_data_button = tk.Button(left_frame, text="Load Data", width=30, height=3, font=('Arial', 12, 'bold italic'), bg='gray', fg='white', bd=0, highlightthickness=0)
+    load_data_button.pack(padx=10, pady=15)
+
+    # right_frame
+    listbox = tk.Listbox(right_frame, width=100, font=7, background='gray', foreground='white')
     listbox.pack(expand=True, fill='both', padx=10, pady=10)
 
-    # Кнопка для выбора файла и отображения заголовков
-    select_button = tk.Button(main_frame, text="Select File", command=lambda: select_file(main_frame, listbox), width=20, height=3, background='blue', foreground='white', font=("Helvetica", 12))
-    select_button.pack(pady=10) 
+    # Кнопки с отступами между ними
+    buttons_frame = tk.Frame(main_frame, bg='white')  # Помещаем кнопки в основной фрейм
+    buttons_frame.pack(fill='x', pady=(0, 10))  # Увеличиваем верхний отступ для кнопок
 
-    # Кнопка для создания графика
-    graph_button = tk.Button(main_frame, text="Create Graph", command=lambda: create_graph(data_frame), width=20, height=3, background='green', foreground='white', font=("Helvetica", 12))
-    graph_button.pack(pady=10)
+    select_file_button = tk.Button(buttons_frame, text="SELECT FILE", command=lambda: select_file(main_frame, listbox), width=30, height=3, font=('Arial', 12, 'bold italic'), bg='gray', fg='white', bd=0, highlightthickness=0)
+    select_file_button.pack(side='left', padx=(10, 5))
 
-    # Устанавливаем конфигурацию для центрирования кнопки
-    main_frame.grid_columnconfigure(0, weight=1)
-    main_frame.grid_rowconfigure(3, weight=1)
+    create_graph_button = tk.Button(buttons_frame, text="CREATE GRAPH", command=lambda: create_graph(inner_frame), width=30, height=3, font=('Arial', 12, 'bold italic'), bg='gray', fg='white', bd=0, highlightthickness=0)
+    create_graph_button.pack(side='right', padx=(5, 10))
 
     root.mainloop()
+
 
 def load_file_once():
     root = tk.Tk()
