@@ -1,4 +1,5 @@
 import tkinter as tk
+import os
 from tkinter import ttk
 from tkinter import filedialog
 from descriptor import DataDescriptor
@@ -12,6 +13,8 @@ plot = Plot(data)
 class Main:
 
     def __init__(self):
+        self.file_path = None
+
         self.root = tk.Tk()
         self.root.geometry("800x600")
         self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
@@ -42,18 +45,22 @@ class Main:
         self.option_menu.config(font=('Arial', 12), background='gray', foreground='white')
         self.option_menu.pack(fill='x', padx=10, pady=10)
 
+        self.file_format_label = tk.Label(self.left_frame, text="File format:", background='gray', foreground='white', font=('Aerial', 14))
+        self.file_format_label.pack(fill='x', pady=(50, 5), padx=10)
+        
+        self.file_format_entry = tk.Entry(self.left_frame, background='gray', foreground='white', font=('Arial', 18, 'bold italic'))
+        self.file_format_entry.pack(fill='x', pady=5, padx=10)
+
+
         self.reset_button = tk.Button(self.left_frame, text="Reset", command=self.reset_option, width=25, height=2, font=('Arial', 12, 'bold italic'), bg='gray', fg='white', bd=0, highlightthickness=0)
         self.reset_button.pack(padx=10, pady=10, side='bottom')
 
-        # Создание горизонтальной полосы прокрутки
         self.horizontal_scrollbar = tk.Scrollbar(self.right_frame, orient=tk.HORIZONTAL)
         self.horizontal_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
 
-        # Создание Listbox с привязкой к горизонтальной полосе прокрутки
         self.listbox = tk.Listbox(self.right_frame, width=150, font=14, background='gray', foreground='white', xscrollcommand=self.horizontal_scrollbar.set)
         self.listbox.pack(expand=True, fill='both', padx=10, pady=10)
 
-        # Привязка горизонтальной полосы прокрутки к Listbox
         self.horizontal_scrollbar.config(command=self.listbox.xview)
 
         self.buttons_frame = tk.Frame(self.main_frame, bg='Slategray2')  
@@ -68,19 +75,25 @@ class Main:
         self.root.mainloop()
 
     def load_data(self):
-        self.data = load_file_once()
+        self.data, self.file_path = load_file_once()
+        self.file_path = os.path.basename(self.file_path)
         if self.data is not None:
             header = self.data.head().reset_index(drop=True)  
             self.update_data_frame(header)
-            self.update_option_menu(header)  
+            self.update_option_menu(header)
+
+            row_count = len(self.data)
+            self.label_count_of_rows.config(text=f"Count of Rows: {row_count}")
+            self.label_current_dataset.config(text=f"Current Data Set: {self.file_path}")
 
     def select_file(self, data_frame):
         self.load_data()
 
     def create_graph(self, data_frame):
         if self.data is not None:
+            file_format = self.file_format_entry.get()
             filtered_data = plot.filter_data(self.data)  
-            plot.make_3d_graph(*filtered_data)
+            plot.make_3d_graph(*filtered_data, file_format)
 
     def update_data_frame(self, header):
         self.listbox.delete(0, tk.END)
@@ -100,14 +113,14 @@ class Main:
         options = [column for column in header.columns if column.isidentifier()] if header is not None else []
 
         if options:
-            self.option_var.set("")  # Сброс текущего значения
-            self.option_menu['menu'].delete(0, 'end')  # Очистка старых вариантов
+            self.option_var.set("")
+            self.option_menu['menu'].delete(0, 'end')
 
             for option in options:
                 self.option_menu['menu'].add_command(label=option, command=tk._setit(self.option_var, option))
         else:
-            self.option_var.set("No Options")  # Установка сообщения, когда нет вариантов для выбора
-            self.option_menu['menu'].delete(0, 'end')  # Очистка старых вариантов
+            self.option_var.set("No Options")
+            self.option_menu['menu'].delete(0, 'end')
 
     def reset_option(self):
         selected_column = self.option_var.get()
@@ -118,15 +131,14 @@ class Main:
             self.update_data_frame(updated_header)
             self.update_option_menu(updated_header)
             
-            # Удаление выбранного элемента из listBox
             items = self.listbox.get(0, tk.END)
             try:
                 index = items.index(selected_column)
                 self.listbox.delete(index)
             except ValueError:
-                pass  # Если столбец уже удален или его нет в listBox
+                pass
 
-            self.option_var.set("")  # Сброс выбранной опции в OptionMenu
+            self.option_var.set("")
 
 def load_file_once():
     root = tk.Tk()
@@ -134,7 +146,7 @@ def load_file_once():
     file_path = filedialog.askopenfilename()
     if file_path:
         data = plot.load_file(file_path)
-        return data  
+        return data, file_path  
     return None 
 
 if __name__ == "__main__":
