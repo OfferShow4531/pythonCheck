@@ -21,11 +21,15 @@ class Plot:
         well_data = self.data_descriptor._data
 
         n_wells = well_data.shape[1]
-        x_coordinates = np.arange(n_wells)
+        x_coordinates = data['Xpos']  # Используем данные Xpos
+        print(x_coordinates)
 
-        y_coordinates = np.arange(len(data))
+        y_coordinates = data['Ypos']  # Используем данные Ypos
+        print(y_coordinates)
 
-        points = np.column_stack((np.repeat(x_coordinates, len(data)), np.tile(y_coordinates, n_wells), well_data.values.ravel()))
+        # Используем данные Well1, Well2, Well3, Well4, Well5 в качестве Z-координат
+        z_data = data[['Well1', 'Well2', 'Well3', 'Well4', 'Well5']].values
+        points = np.column_stack((np.repeat(x_coordinates, n_wells), np.tile(y_coordinates, n_wells), z_data.ravel()))
 
         # Reshape points to have shape (X, 3)
         points = points.reshape(-1, 3)

@@ -74,6 +74,10 @@ class Main:
 
         self.root.mainloop()
 
+
+
+
+
     def load_data(self):
         self.data, self.file_path = load_file_once()
         self.file_path = os.path.basename(self.file_path)
