@@ -76,8 +76,6 @@ class Main:
 
 
 
-
-
     def load_data(self):
         self.data, self.file_path = load_file_once()
         self.file_path = os.path.basename(self.file_path)
@@ -96,7 +94,8 @@ class Main:
     def create_graph(self, data_frame):
         if self.data is not None:
             file_format = self.file_format_entry.get()
-            filtered_data = plot.filter_data(self.data)  
+            print(self.data)
+            filtered_data = plot.filter_data(self.data) 
             plot.make_3d_graph(*filtered_data, file_format)
 
     def update_data_frame(self, header):
