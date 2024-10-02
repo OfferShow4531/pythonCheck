@@ -3,3 +3,5 @@ DEBUG:root:Sizes: points: (300, 3)
 ERROR:root:Неправильный размер массива точек. Ожидалось (900, 3), получено (300, 3).
 ERROR:root:Bad plane coordinate system
 ERROR:root:Algorithm vtkPlaneSource (0000029CA7DB6DF0) returned failure for request: vtkInformation (0000029CA7F721B0)
+ERROR:root:Bad plane coordinate system
+ERROR:root:Algorithm vtkPlaneSource (000001F74F8A9C20) returned failure for request: vtkInformation (000001F75E2EA090)

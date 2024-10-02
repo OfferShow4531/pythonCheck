@@ -1,187 +1,135 @@
 import numpy as np
-import pandas as pd
 import pyvista as pv
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-import vtk
-import itertools
 import logging
-from pyvista import examples
+from tkinter import filedialog, messagebox
 
 # Устанавливаем настройки логирования
 logging.basicConfig(filename='error.log', level=logging.DEBUG)
 
 class Plot:
-    def __init__(self, data_descriptor):
-        self.data_descriptor = data_descriptor
+    def __init__(self):
+        self.plotter = None
 
-    def load_file(self, file):
-        data = pd.read_csv(file)
+    def filter_data(self, data, timestamp):
+        """Фильтрует данные по выбранному Timestamp"""
+        timestamp_filtered = data[data['Timestamp'] == timestamp]
+        if timestamp_filtered.empty:
+            return None
 
-
-        self.data_descriptor._data = data
-
-        return data
-
-    # def filter_data(self, data):
-    #     well_data = self.data_descriptor._data
-    #     n_wells = well_data.shape[1] - 3  # Вычитаем 3, так как у нас есть столбцы Timestamp, Xpos и Ypos
-    #     x_coordinates = data['Xpos']
-    #     y_coordinates = data['Ypos']
-    #     z_coordinates = np.array([data[f'Well{i+1}'] for i in range(n_wells)]).T  # Создаем массив Z координат для каждой скважины
-    #     timestamps = data['Timestamp']  # Получаем временные метки
-    #     return x_coordinates, y_coordinates, z_coordinates, timestamps, n_wells
-    
-    def filter_data(self, data):
-        well_data = self.data_descriptor._data
-        n_wells = well_data.shape[1] - 3  # Вычитаем 3, так как у нас есть столбцы Timestamp, Xpos и Ypos
-        x_coordinates = data['Xpos']
-        y_coordinates = data['Ypos']
-        z_coordinates = np.array([data[f'Well{i+1}'] for i in range(n_wells)]).T  # Создаем массив Z координат для каждой скважины
+        x_coordinates = timestamp_filtered['Xpos'].values
+        y_coordinates = timestamp_filtered['Ypos'].values
+        z_coordinates = timestamp_filtered.drop(columns=['Timestamp', 'Xpos', 'Ypos']).values.T
+        n_wells = z_coordinates.shape[0]
         return x_coordinates, y_coordinates, z_coordinates, n_wells
-        # x_coordinates = data['Xpos']  # Используем данные Xpos
-        # y_coordinates = data['Ypos']  # Используем данные Ypos
 
-        # Получаем данные для каждого временного шага
-        # timestamps = data['Timestamp'].unique()
-
-        # Создаем массив точек (X, Y, Z) для каждого временного шага и каждой скважины
-        # points = []
-        # for timestamp in timestamps:
-        #     for i in range(len(x_coordinates)):
-        #         x = x_coordinates[i]
-        #         y = y_coordinates[i]
-        #         for j in range(n_wells):
-        #             well_column_name = f'Well{j + 1}'
-        #             if well_column_name in data.columns:
-        #                 filtered_data = data.query(f'Xpos == {x} and Ypos == {y} and Timestamp == {timestamp}')
-        #                 if not filtered_data.empty:
-        #                     z = filtered_data[well_column_name].values[0]
-        #                     points.append([x, y, z])
-        #                     print(x,y,z)
-
-        # points = np.array(points)
-       
-    
-    # def make_3d_graph(self, points, x_coordinates, y_coordinates, n_weels, well_data, file_type):
-    #     x_ground, y_ground = np.meshgrid(x_coordinates, y_coordinates)
+    def make_3d_graph(self, x_coordinates, y_coordinates, z_coordinates, n_wells):
+        """Создание 3D модели скважин"""
+        self.plotter = pv.Plotter()
         
-    #     print("Sizes: x_ground:", x_ground.shape, "y_ground:", y_ground.shape)
+        if len(x_coordinates) == 0 or len(y_coordinates) == 0 or len(z_coordinates) == 0:
+            print("Нет данных для отрисовки скважин.")
+            return
 
-    #     print("Sizes: points:", points.shape)
+        print(f"X Coordinates: {x_coordinates}")
+        print(f"Y Coordinates: {y_coordinates}")
+        print(f"Z Coordinates:\n{z_coordinates}")
+        print(f"Number of Wells: {n_wells}")
 
-    #     z_ground = points[:, 2].reshape(x_ground.shape)
 
-    #     ground = pv.StructuredGrid(x_ground, y_ground, z_ground)
+        colors = ['brown', 'gray', 'blue', 'green', 'yellow']
 
-    #     plotter = pv.Plotter()
-    #     plotter.add_mesh(ground, color="green", opacity=0.5, label="Ground")
+        # Реалистичная земля с возвышенностями
+        terrain_size = 10  # Размер участка земли
+        terrain_height = 5  # Высота рельефа
+        terrain = pv.Plane(i_size=terrain_size, j_size=terrain_size)
+        noise = np.random.normal(0, 1, size=(terrain.points.shape[0],))
+        terrain.points[:, 2] = noise * terrain_height  # Неровная земля
 
-    #     for column_index in range(n_weels):
-    #         column_points = well_data.iloc[:, column_index].values
-    #         unique_points, point_counts = np.unique(column_points, return_counts=True)
-    #         common_points = unique_points[point_counts > 1]
+        self.plotter.add_mesh(terrain, color="green", opacity=0.7)
 
-    #         for point_value in common_points:
-    #             point_indices = np.where(column_points == point_value)[0]
-    #             # Построение линий только в случае, если координаты точки присутствуют в данных
-    #             if len(point_indices) > 0:
-    #                 line_points = np.array([points[point_indices[0]], points[point_indices[-1]]])
-    #                 plotter.add_lines(line_points, color="blue", width=1)
+        # Создание слоев почвы и пород
+        self.add_soil_layers(terrain_size)
 
-        # plotter.add_legend(bcolor='w', face=None)
+        # Используем общие координаты для всех скважин
+        x = x_coordinates[0]  # Используем первую координату X
+        y = y_coordinates[0]  # Используем первую координату Y
 
-        # min_elevation = np.min(points[:, 2])  # Минимальная высота берется прямо из данных по оси Z
-        # max_elevation = np.max(points[:, 2])  # Максимальная высота берется прямо из данных по оси Z
-        # plotter.add_text(f"Min: {min_elevation}", position="upper_left", font_size=12)
-        # plotter.add_text(f"Max: {max_elevation}", position="lower_left", font_size=12)
-        # plotter.show()
-
-    def height_function(self, x, y):
-        # Пример функции высоты, можно заменить на любую другую
-        return np.sin(x) * np.cos(y)
-
-    # def make_3d_graph(self, x_coordinates, y_coordinates, z_coordinates, timestamps, n_wells, file_type):
-    #     # Нормализация координат Z
-    #     z_min = np.min(z_coordinates)
-    #     z_max = np.max(z_coordinates)
-    #     z_range = z_max - z_min
-    #     z_normalized = (z_coordinates - z_min) / z_range
-
-    #     plotter = pv.Plotter()
-
-    #     # Создание градиентной цветовой карты для временных меток
-    #     cmap = plt.get_cmap('plasma', len(timestamps))
-    #     custom_cmap = ListedColormap(cmap(np.linspace(0, 1, len(timestamps))))
-
-    #     # Создание трехмерной поверхности земли
-    #     x_ground, y_ground = np.meshgrid(x_coordinates, y_coordinates)
-    #     z_ground = self.height_function(x_ground, y_ground)
-    #     ground = pv.StructuredGrid(x_ground, y_ground, z_ground)
-    #     plotter.add_mesh(ground, color="green", opacity=0.5, label="Ground")
-
-    #     # Добавление скважин
-    #     for i in range(n_wells):
-    #         well_coordinates = np.column_stack((x_coordinates, y_coordinates, z_normalized[:, i]))
-    #         well_polydata = pv.PolyData(well_coordinates)
-
-    #         # Увеличение размера точек и указание различных форм
-    #         plotter.add_mesh(well_polydata, color=custom_cmap(i), point_size=15, render_points_as_spheres=True, label=f"Well {i+1}")
-
-    #     # Создание легенды для временных меток
-    #     legend_labels = [f"{i+1}: {timestamps[i]}" for i in range(len(timestamps))]
-    #     color_bar = plotter.add_scalar_bar(title="Timestamp", n_labels=len(timestamps), height=0.5, vertical=True)
-
-    #     # Настройка цветовой шкалы
-    #     lut = vtk.vtkLookupTable()
-    #     lut.SetNumberOfTableValues(len(timestamps))
-    #     for i, color in enumerate(custom_cmap.colors):
-    #         lut.SetTableValue(i, color[0], color[1], color[2], 1.0)
-    #     color_bar.SetLookupTable(lut)
-
-    #     # Добавление текста для минимальной и максимальной высоты
-    #     min_elevation = np.min(z_coordinates)
-    #     max_elevation = np.max(z_coordinates)
-    #     plotter.add_text(f"Min Elevation: {min_elevation}", position="upper_left", font_size=12)
-    #     plotter.add_text(f"Max Elevation: {max_elevation}", position="lower_left", font_size=12)
-
-    #     # Показать график
-    #     plotter.show()
-
-    def make_3d_graph(self, x_coordinates, y_coordinates, z_coordinates, n_wells, file_type):
-        # Нормализация координат Z
-        z_min = np.min(z_coordinates)
-        z_max = np.max(z_coordinates)
-        z_range = z_max - z_min
-        z_normalized = (z_coordinates - z_min) / z_range
-
-        plotter = pv.Plotter()
-
-        # Creating ground surface
-        x_ground, y_ground = np.meshgrid(x_coordinates, y_coordinates)
-        z_ground = np.zeros_like(x_ground)
-        ground = pv.StructuredGrid(x_ground, y_ground, z_ground)
-        plotter.add_mesh(ground, color="green", opacity=0.5, label="Ground")
-
-        # Defining colors for wells
-        colors = plt.cm.viridis(np.linspace(0, 1, n_wells))
-
-        # Adding wells with different colors
         for i in range(n_wells):
-            well_coordinates = np.column_stack((x_coordinates, y_coordinates, z_normalized[:, i]))
-            well_polydata = pv.PolyData(well_coordinates)
-            color = colors[i]
-            plotter.add_mesh(well_polydata, color=color, point_size=10, render_points_as_spheres=True, label=f"Well {i+1}")
+            if i < len(z_coordinates):
+                z_min = z_coordinates[i][0]  # Нижняя точка скважины
+                z_max = z_min # Если одна точка, то z_max = z_min
+                height = 1  # Высота цилиндра для визуализации
+                print(f"Well {i + 1}: X={x}, Y={y}, Z_min={z_min}, Z_max={z_max}, Height={height}")
 
-        # Adding legend with larger size
-        plotter.add_legend(bcolor='black', face=None, size=(0.22, 0.22))
+                cylinder = pv.Cylinder(center=(x, y, z_min + height / 2), direction=(0, 0, 1), radius=0.2, height=height)
+                color = self.get_color_by_well(i)  # Разные цвета для разных скважин
+                self.plotter.add_mesh(cylinder, color=color, opacity=0.9)
+            else:
+                print(f"Не хватает данных для скважины {i + 1}")
 
-        # Adding text for min and max elevation
-        min_elevation = np.min(z_coordinates)
-        max_elevation = np.max(z_coordinates)
-        plotter.add_text(f"Min Elevation: {min_elevation}", position="upper_left", font_size=12)
-        plotter.add_text(f"Max Elevation: {max_elevation}", position="lower_left", font_size=12)
+        # Добавляем легенду с n_wells
+        self.add_legend(colors, n_wells)
 
-        # Show plot
-        plotter.show()
+        self.plotter.show()
 
+    def add_soil_layers(self, terrain_size):
+        """Добавление слоев почвы и пород"""
+        soil_thickness = 5
+        rock_thickness = 5
+        gravel_thickness = 5
+        bedrock_thickness = 5
+
+        # Плодородная почва (толщина 5 метров)
+        soil = pv.Cube(center=(0, 0, -soil_thickness / 2), x_length=terrain_size, y_length=terrain_size, z_length=soil_thickness)
+        self.plotter.add_mesh(soil, color="brown", opacity=0.8)
+
+        # Каменная порода
+        rock = pv.Cube(center=(0, 0, -(soil_thickness + rock_thickness / 2)), x_length=terrain_size, y_length=terrain_size, z_length=rock_thickness)
+        self.plotter.add_mesh(rock, color="gray", opacity=0.8)
+
+        # Гравий
+        gravel = pv.Cube(center=(0, 0, -(soil_thickness + rock_thickness + gravel_thickness / 2)), x_length=terrain_size, y_length=terrain_size, z_length=gravel_thickness)
+        self.plotter.add_mesh(gravel, color="darkgray", opacity=0.7)
+
+        # Бедрок
+        bedrock = pv.Cube(center=(0, 0, -(soil_thickness + rock_thickness + gravel_thickness + bedrock_thickness / 2)), x_length=terrain_size, y_length=terrain_size, z_length=bedrock_thickness)
+        self.plotter.add_mesh(bedrock, color="black", opacity=0.9)
+
+        # Модель подземных вод (например, под гравием)
+        water_thickness = 3
+        water = pv.Cube(center=(0, 0, -(soil_thickness + rock_thickness + water_thickness / 2)), x_length=terrain_size, y_length=terrain_size, z_length=water_thickness)
+        self.plotter.add_mesh(water, color="cyan", opacity=0.5)
+
+    def get_color_by_well(self, index):
+        """Возвращает цвет для каждой скважины на основе ее индекса"""
+        colors = ["red", "blue", "green", "yellow", "orange", "purple", "pink", "cyan", "magenta", "brown"]
+        return colors[index % len(colors)]
+
+    def add_legend(self, colors, n_wells):
+        """Добавление легенды для скважин"""
+        # Создаем отдельный контейнер для легенды
+        self.plotter.add_text(f"Количество скважин: {n_wells}", position='upper_right', font_size=10)
+        self.plotter.add_text("Скважины", position='upper_left', font_size=12)
+
+        for i, color in enumerate(colors):
+            legend_sphere = pv.Sphere(radius=0.1, center=(0.5, 0.5, 0))  # Используем сферы как маркеры
+            self.plotter.add_mesh(legend_sphere, color=color, opacity=1)
+            self.plotter.add_text(f"Скважина {i + 1}", position='upper_left', font_size=10)
+
+    def add_landscape_legend(self):
+        """Добавление легенды для ландшафта"""
+        self.plotter.add_text("Ландшафт:", position='upper_right', font_size=12)
+
+        # Добавляем описание для каждого слоя
+        self.plotter.add_text("Коричневый: Плодородная почва", position='upper_right', font_size=10)
+        self.plotter.add_text("Серый: Каменная порода", position='upper_right', font_size=10)
+        self.plotter.add_text("Темно-серый: Гравий", position='upper_right', font_size=10)
+        self.plotter.add_text("Черный: Бедрок", position='upper_right', font_size=10)
+        self.plotter.add_text("Голубой: Подземные воды", position='upper_right', font_size=10)
+
+    def save_current_model(self):
+        """Сохранение текущей модели в файл"""
+        file_path = filedialog.asksaveasfilename(defaultextension=".vtk", filetypes=[("VTK files", "*.vtk")])
+        if file_path:
+            self.plotter.save(file_path)
+            messagebox.showinfo("Сохранение", "Модель успешно сохранена.")
