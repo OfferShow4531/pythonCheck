@@ -1,5 +1,6 @@
 import pyvista as pv
 import numpy as np
+import time
 
 class Plot:
     def __init__(self):
@@ -41,6 +42,7 @@ class Plot:
 
         current_depth = 0
         confined_layer_depth = 0  # Будет обновлено позже
+        unconfined_layer_depth = 0  # Будет обновлено позже
 
         # Создаем и добавляем каждый слой почвы как объемный параллелепипед с вариацией в высоте поверхности
         for layer in layers:
@@ -60,14 +62,16 @@ class Plot:
             self.plotter.add_mesh(cube, color=layer['color'], opacity=layer['opacity'], label=layer['name'])
             self.plotter.add_mesh(top_surface, color=layer['color'], opacity=layer['opacity'] + 0.1)
 
-            # Обновляем переменную глубины
+            # Обновляем переменные глубины
             if layer['name'] == 'Confined Layer':
                 confined_layer_depth = current_depth
+            if layer['name'] == 'Unconfined Aquifer':
+                unconfined_layer_depth = current_depth
 
             current_depth = bottom_z
 
         # Создаем смещение для каждой скважины, чтобы они не были в одной точке
-        offsets = np.linspace(-10, 10, n_wells)  # Расширяем интервал между скважинами
+        offsets = np.linspace(-25, 25, n_wells)  # Расширяем интервал между скважинами
 
         colors = ['blue', 'cyan', 'purple', 'red', 'orange', 'yellow', 'green', 'pink', 'brown', 'gray']
 
@@ -77,15 +81,15 @@ class Plot:
                 print(f"Недостаточно данных для отображения скважины {i + 1}, пропуск.")
                 continue
 
-            # Визуализируем скважину как цилиндр с корректной ориентацией и различием в цвете по глубине
-            # Ограничиваем глубину скважин уровнем между confined и unconfined aquifer
+            # Ограничиваем глубину скважин уровнем между confined и unconfined aquifer слоями
             self.create_well(
                 x_coordinate + offsets[i], y_coordinate, confined_layer_depth, colors[i % len(colors)]
             )
 
         self.add_legend(colors)
-        self.plotter.show()
-        self.save_current_model("well_model.png")
+
+        # Показ модели и запуск анимации дождя и инфильтрации
+        self.plotter.show(interactive=True)
 
     def create_well(self, x, y, confined_depth, color):
         """Создает визуализацию скважины как цилиндр, пронизывающий верхние слои, но не ниже confined слоя"""
@@ -111,7 +115,36 @@ class Plot:
         self.plotter.add_text("Well", position="upper_right", font_size=10, color="blue")
         self.plotter.add_legend(labels=legend_labels, bcolor="white")
 
+    def animate_rain_infiltration(self, unconfined_layer_depth):
+        """Создает анимацию дождя и инфильтрации воды на уровне Unconfined Aquifer"""
+        num_drops = 50  # Количество капель дождя
+        drop_radius = 0.3  # Радиус капли
+        rain_duration = 5  # Продолжительность дождя (в секундах)
+
+        # Генерация случайных позиций для капель дождя
+        x_positions = np.random.uniform(-25, 25, num_drops)
+        y_positions = np.random.uniform(-25, 25, num_drops)
+        initial_height = 10  # Высота, с которой начинается падение капель
+
+        # Добавление капель и анимация их падения
+        rain_drops = []
+        for i in range(num_drops):
+            rain_drop = pv.Sphere(center=(x_positions[i], y_positions[i], initial_height), radius=drop_radius)
+            rain_actor = self.plotter.add_mesh(rain_drop, color='blue', opacity=0.5)
+            rain_drops.append((rain_drop, rain_actor))
+
+        # Анимация движения капель вниз
+        num_steps = 30  # Количество шагов анимации
+        for step in range(num_steps):
+            for rain_drop, rain_actor in rain_drops:
+                new_z = rain_drop.center[2] - (initial_height - unconfined_layer_depth) / num_steps
+                rain_drop.translate((0, 0, -new_z), inplace=True)
+                self.plotter.update_coordinates(rain_drop.points, render=False)
+            time.sleep(rain_duration / num_steps)
+            self.plotter.render()  # Обновление сцены для визуализации анимации
+
     def save_current_model(self, filename="well_model.png"):
         """Сохраняет текущую модель в файл"""
         if self.plotter:
             self.plotter.screenshot(filename)
+            print(f"Модель успешно сохранена как {filename}")
