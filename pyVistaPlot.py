@@ -1,75 +1,117 @@
-import numpy as np
-import pandas as pd
 import pyvista as pv
-import matplotlib.pyplot as plt
-import itertools
-from pyvista import examples
+import numpy as np
 
 class Plot:
-    def __init__(self, data_descriptor):
-        self.data_descriptor = data_descriptor
+    def __init__(self):
+        self.plotter = pv.Plotter()
 
-    def load_file(self, file):
-        data = pd.read_csv(file)
+    def filter_data(self, data, timestamp):
+        """Фильтрует данные по выбранному Timestamp."""
+        timestamp_filtered = data[data['Timestamp'] == timestamp]
 
+        if timestamp_filtered.empty:
+            raise ValueError(f"Нет данных для timestamp {timestamp}.")
 
-        self.data_descriptor._data = data
+        # Извлечение координат X и Y (предполагаем, что они одинаковые для всех скважин)
+        x_coordinate = timestamp_filtered['Xpos'].values[0]
+        y_coordinate = timestamp_filtered['Ypos'].values[0]
 
-        return data
+        # Получение глубин для всех скважин (колонки Well1, Well2, ..., Well10)
+        z_values = timestamp_filtered[['Well1', 'Well2', 'Well3', 'Well4', 'Well5',
+                                       'Well6', 'Well7', 'Well8', 'Well9', 'Well10']].values
 
-    def filter_data(self, data):
-        well_data = self.data_descriptor._data
+        # Транспонируем для удобства работы, чтобы каждая скважина была отдельной строкой
+        z_coordinates = z_values.T
+        n_wells = z_coordinates.shape[0]  # Количество скважин
 
-        n_wells = well_data.shape[1]
-        x_coordinates = np.arange(n_wells)
+        return x_coordinate, y_coordinate, z_coordinates, n_wells
 
-        y_coordinates = np.arange(len(data))
+    def make_3d_graph(self, x_coordinate, y_coordinate, z_coordinates, n_wells):
+        """Создание 3D модели скважин с реалистичными почвенными слоями"""
 
-        points = np.column_stack((np.repeat(x_coordinates, len(data)), np.tile(y_coordinates, n_wells), well_data.values.ravel()))
+        # Определение слоев почвы
+        layers = [
+            {'name': 'Organic', 'height': 2, 'color': 'brown', 'opacity': 0.9},
+            {'name': 'Surface', 'height': 3, 'color': 'green', 'opacity': 0.5},
+            {'name': 'Subsoil', 'height': 4, 'color': 'sandybrown', 'opacity': 0.7},
+            {'name': 'Unconfined Aquifer', 'height': 5, 'color': 'lightblue', 'opacity': 0.6},
+            {'name': 'Confined Layer', 'height': 4, 'color': 'gray', 'opacity': 0.9},
+            {'name': 'Bedrock', 'height': 6, 'color': 'black', 'opacity': 0.9}
+        ]
 
-        # Reshape points to have shape (X, 3)
-        points = points.reshape(-1, 3)
+        current_depth = 0
+        confined_layer_depth = 0  # Будет обновлено позже
 
-        return points, x_coordinates, y_coordinates, n_wells, well_data
+        # Создаем и добавляем каждый слой почвы как объемный параллелепипед с вариацией в высоте поверхности
+        for layer in layers:
+            # Создание текстурированного верхнего слоя
+            plane_resolution = 30  # Определяем разрешение плоскости (большее значение создаст больше точек)
+            top_surface = pv.Plane(center=(0, 0, current_depth), i_size=60, j_size=60, i_resolution=plane_resolution, j_resolution=plane_resolution)
 
-    def make_3d_graph(self, points, x_coordinates, y_coordinates, n_weels, well_data, file_type):
-        elevation_data = points[:, -1]
+            # Генерация вариации высоты для каждого узла поверхности
+            height_variation = np.random.uniform(-0.5, 0.5, top_surface.points.shape[0])
+            top_surface.points[:, 2] += height_variation
 
-        print(f'ELEVATION DATA: {elevation_data}')
+            # Создание куба для слоя почвы
+            bottom_z = current_depth - layer['height']
+            cube = pv.Box(bounds=(-30, 30, -30, 30, bottom_z, current_depth))
 
-        point_cloud = pv.PolyData(points)
-        point_cloud["elevation"] = elevation_data
+            # Добавление слоя и верхней поверхности
+            self.plotter.add_mesh(cube, color=layer['color'], opacity=layer['opacity'], label=layer['name'])
+            self.plotter.add_mesh(top_surface, color=layer['color'], opacity=layer['opacity'] + 0.1)
 
-        print(point_cloud)
+            # Обновляем переменную глубины
+            if layer['name'] == 'Confined Layer':
+                confined_layer_depth = current_depth
 
-        x_ground, y_ground = np.meshgrid(x_coordinates, y_coordinates)
-        z_ground = np.zeros_like(x_ground)
+            current_depth = bottom_z
 
-        ground = pv.StructuredGrid(x_ground, y_ground, z_ground)
+        # Создаем смещение для каждой скважины, чтобы они не были в одной точке
+        offsets = np.linspace(-10, 10, n_wells)  # Расширяем интервал между скважинами
 
-        plotter = pv.Plotter()
-        plotter.add_mesh(ground, color="green", opacity=0.5, label="Ground")
-        plotter.add_mesh(point_cloud, render_points_as_spheres=True, point_size=5, label="Point Cloud")
+        colors = ['blue', 'cyan', 'purple', 'red', 'orange', 'yellow', 'green', 'pink', 'brown', 'gray']
 
-        print("WEELS: ", n_weels)
-        for column_index in range(n_weels):
-            column_points = well_data.iloc[:, column_index].values
-            print(f' WEEL DATA: {well_data}')
-            unique_points, point_counts = np.unique(column_points, return_counts=True)
-            common_points = unique_points[point_counts > 1]
+        for i in range(n_wells):
+            z_value = z_coordinates[i][0]
+            if np.isnan(z_value):
+                print(f"Недостаточно данных для отображения скважины {i + 1}, пропуск.")
+                continue
 
-            for point_value in common_points:
-                point_indices = np.where(column_points == point_value)[0] + column_index * len(y_coordinates)
+            # Визуализируем скважину как цилиндр с корректной ориентацией и различием в цвете по глубине
+            # Ограничиваем глубину скважин уровнем между confined и unconfined aquifer
+            self.create_well(
+                x_coordinate + offsets[i], y_coordinate, confined_layer_depth, colors[i % len(colors)]
+            )
 
-                for i in range(len(point_indices) - 1):
-                    line_points = np.array([points[point_indices[i]], points[point_indices[i + 1]]])
-                    plotter.add_lines(line_points, color="blue", width=1)
+        self.add_legend(colors)
+        self.plotter.show()
+        self.save_current_model("well_model.png")
 
-        plotter.add_legend(bcolor='w', face=None)
+    def create_well(self, x, y, confined_depth, color):
+        """Создает визуализацию скважины как цилиндр, пронизывающий верхние слои, но не ниже confined слоя"""
+        # Высота скважины должна доходить до верхнего слоя и не заходить глубже ограниченного слоя (confined layer)
+        well_height = abs(confined_depth)
 
-        min_elevation = np.min(elevation_data)
-        max_elevation = np.max(elevation_data)
-        plotter.add_text(f"Min: {min_elevation}", position="upper_left", font_size=12)
-        plotter.add_text(f"Max: {max_elevation}", position="lower_left", font_size=12)
-        plotter.show()
+        # Создаем цилиндр для скважины, направленный вниз от поверхности
+        well_cylinder = pv.Cylinder(center=(x, y, confined_depth / 2), radius=0.5, height=well_height, direction=(0, 0, -1))
+        self.plotter.add_mesh(well_cylinder, color=color, opacity=0.9, label=f'Well {color}')
 
+    def add_legend(self, colors):
+        """Добавляет легенду на график"""
+        legend_labels = [
+            ("Organic", "brown"),
+            ("Surface", "green"),
+            ("Subsoil", "sandybrown"),
+            ("Unconfined Aquifer", "lightblue"),
+            ("Confined Layer", "gray"),
+            ("Bedrock", "black")
+        ]
+        legend_labels += [(f"Well ({color})", color) for color in colors]
+
+        self.plotter.add_text("Well", position="upper_right", font_size=10, color="blue")
+        self.plotter.add_legend(labels=legend_labels, bcolor="white")
+
+    def save_current_model(self, filename="well_model.png"):
+        """Сохраняет текущую модель в файл"""
+        if self.plotter:
+            self.plotter.screenshot(filename)
