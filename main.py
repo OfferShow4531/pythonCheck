@@ -1,13 +1,12 @@
-import tkinter as tk #Tkinter
-from tkinter import filedialog, messagebox
-import pandas as pd
+import tkinter as tk
+from dataPreprocessing import DataPreprocessing
 from pyVistaPlot import Plot
 
 class Main:
     def __init__(self):
-        self.data = None  # DataFrame для хранения данных
-        self.plot = Plot()  # Класс для работы с 3D графикой
-
+        self.dataPreproc = DataPreprocessing()
+        self.plot = Plot()
+        
         # Создание главного окна
         self.root = tk.Tk()
         self.root.geometry("800x600")
@@ -21,16 +20,16 @@ class Main:
         self.left_frame.pack(side="left", fill="y", padx=10, pady=10)
 
         # Кнопка выбора файла
-        self.select_file_button = tk.Button(self.left_frame, text="Выбрать файл", command=self.load_file)
+        self.select_file_button = tk.Button(self.left_frame, text="Выбрать файл", command=self.load_and_prepare_data)
         self.select_file_button.pack(pady=5)
 
         # Опции для выбора Timestamp
-        self.timestamp_var = tk.StringVar()
+        self.timestamp_var = tk.StringVar(value="Выберите timestamp")  # Устанавливаем значение по умолчанию
         self.timestamp_menu = tk.OptionMenu(self.left_frame, self.timestamp_var, "")
         self.timestamp_menu.pack(pady=5)
 
         # Кнопка для создания 3D модели
-        self.create_graph_button = tk.Button(self.left_frame, text="Создать 3D модель", command=self.create_3d_model)
+        self.create_graph_button = tk.Button(self.left_frame, text="Создать 3D модель", command=self.create_model)
         self.create_graph_button.pack(pady=5)
 
         # Кнопка для анимации Timestamp
@@ -43,81 +42,41 @@ class Main:
 
         self.root.mainloop()
 
-    def load_file(self):
-        """Загрузка CSV файла с данными."""
-        file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
-        if file_path:
-            try:
-                self.data = pd.read_csv(file_path)
-                timestamps = self.data['Timestamp'].unique()
-
-                # Обновление меню выбора Timestamp
-                self.timestamp_menu['menu'].delete(0, 'end')
-                self.timestamp_var.set('')
-
-                for timestamp in timestamps:
-                    self.timestamp_menu['menu'].add_command(
-                        label=str(timestamp),
-                        command=tk._setit(self.timestamp_var, str(timestamp))
-                    )
-            except Exception as e:
-                messagebox.showerror("Ошибка", f"Не удалось загрузить файл: {e}")
-
-    def create_3d_model(self):
-        """Создание 3D модели для выбранного Timestamp."""
-        if not self.data_is_loaded():
-            return
+    def load_and_prepare_data(self):
+        """Загружает файл и обновляет меню Timestamp."""
+        self.dataPreproc.load_file()
         
-        timestamp = self.get_selected_timestamp()
-        if timestamp is None:
-            return
+        # Очистка и обновление timestamp_menu
+        self.timestamp_menu["menu"].delete(0, "end")
+        if self.dataPreproc.timestamps:
+            # Устанавливаем первый элемент как выбранный по умолчанию
+            self.timestamp_var.set(self.dataPreproc.timestamps[0])
 
-        try:
-            # Фильтрация данных и создание графика
-            filtered_data = self.plot.filter_data(self.data, timestamp)
-            self.plot.make_3d_graph(*filtered_data)
-        except Exception as e:
-            messagebox.showerror("Ошибка", f"Не удалось создать модель: {e}")
+            # Добавляем timestamps в меню
+            for timestamp in self.dataPreproc.timestamps:
+                self.timestamp_menu["menu"].add_command(
+                    label=timestamp, command=tk._setit(self.timestamp_var, timestamp)
+                )
+            
+            # Обновляем виджет OptionMenu
+            self.timestamp_menu.update()  # Обновление виджета для отображения изменений
+
+    def create_model(self):
+        """Создает 3D модель для выбранного Timestamp"""
+        timestamp = self.timestamp_var.get()
+        if timestamp and timestamp != "Выберите timestamp":
+            x, y, z, n_wells = self.dataPreproc.get_filtered_data(timestamp)
+            self.plot.make_3d_graph(x, y, z, n_wells)
+        else:
+            print("Выберите timestamp для создания модели")
 
     def animate_model(self):
-        """Анимация для всех доступных Timestamp."""
-        if not self.data_is_loaded():
-            return
+        """Запускает анимацию модели"""
+        self.plot.animate_rain()
 
-        for timestamp in self.data['Timestamp'].unique():
-            try:
-                filtered_data = self.plot.filter_data(self.data, timestamp)
-                self.plot.make_3d_graph(*filtered_data)
-            except Exception as e:
-                messagebox.showerror("Ошибка", f"Анимация прервана: {e}")
-                break
-
-    # def save_model(self):
-    #     """Сохранение текущей 3D модели в файл."""
-    #     try:
-    #         self.plot.save_current_model()
-    #         messagebox.showinfo("Успех", "Модель успешно сохранена!")
-    #     except Exception as e:
-    #         messagebox.showerror("Ошибка", f"Не удалось сохранить модель: {e}")
-
-    def data_is_loaded(self):
-        """Проверка, загружены ли данные."""
-        if self.data is None:
-            messagebox.showwarning("Ошибка", "Загрузите данные перед продолжением.")
-            return False
-        return True
-
-    def get_selected_timestamp(self):
-        """Получает выбранный Timestamp."""
-        timestamp_str = self.timestamp_var.get()
-        if not timestamp_str:
-            messagebox.showwarning("Ошибка", "Выберите timestamp.")
-            return None
-        try:
-            return float(timestamp_str)
-        except ValueError:
-            messagebox.showerror("Ошибка", "Неверный формат timestamp.")
-            return None
+    def save_model(self):
+        """Сохраняет текущую 3D модель"""
+        self.plot.save_model()
 
 if __name__ == "__main__":
     Main()
