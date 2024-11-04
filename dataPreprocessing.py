@@ -1,48 +1,13 @@
-import tkinter as tk #Tkinter
 from tkinter import filedialog, messagebox
+import tkinter as tk
 import pandas as pd
 from pyVistaPlot import Plot
 
-class Main:
+class DataPreprocessing:
     def __init__(self):
-        self.data = None  # DataFrame для хранения данных
-        self.plot = Plot()  # Класс для работы с 3D графикой
-
-        # Создание главного окна
-        self.root = tk.Tk()
-        self.root.geometry("800x600")
-        self.root.title("3D Модель Скважин")
-
-        # Фреймы для размещения виджетов
-        self.main_frame = tk.Frame(self.root)
-        self.main_frame.pack(expand=True, fill="both")
-
-        self.left_frame = tk.Frame(self.main_frame, bg='lightgray')
-        self.left_frame.pack(side="left", fill="y", padx=10, pady=10)
-
-        # Кнопка выбора файла
-        self.select_file_button = tk.Button(self.left_frame, text="Выбрать файл", command=self.load_file)
-        self.select_file_button.pack(pady=5)
-
-        # Опции для выбора Timestamp
-        self.timestamp_var = tk.StringVar()
-        self.timestamp_menu = tk.OptionMenu(self.left_frame, self.timestamp_var, "")
-        self.timestamp_menu.pack(pady=5)
-
-        # Кнопка для создания 3D модели
-        self.create_graph_button = tk.Button(self.left_frame, text="Создать 3D модель", command=self.create_3d_model)
-        self.create_graph_button.pack(pady=5)
-
-        # Кнопка для анимации Timestamp
-        self.animate_button = tk.Button(self.left_frame, text="Анимация", command=self.animate_model)
-        self.animate_button.pack(pady=5)
-
-        # Кнопка сохранения
-        self.save_button = tk.Button(self.left_frame, text="Сохранить модель", command=self.save_model)
-        self.save_button.pack(pady=5)
-
-        self.root.mainloop()
-
+        self.data = None
+        self.plot = Plot()
+    
     def load_file(self):
         """Загрузка CSV файла с данными."""
         file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
@@ -92,13 +57,13 @@ class Main:
                 messagebox.showerror("Ошибка", f"Анимация прервана: {e}")
                 break
 
-    # def save_model(self):
-    #     """Сохранение текущей 3D модели в файл."""
-    #     try:
-    #         self.plot.save_current_model()
-    #         messagebox.showinfo("Успех", "Модель успешно сохранена!")
-    #     except Exception as e:
-    #         messagebox.showerror("Ошибка", f"Не удалось сохранить модель: {e}")
+    def save_model(self):
+        """Сохранение текущей 3D модели в файл."""
+        try:
+            self.plot.save_current_model()
+            messagebox.showinfo("Успех", "Модель успешно сохранена!")
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось сохранить модель: {e}")
 
     def data_is_loaded(self):
         """Проверка, загружены ли данные."""
@@ -118,6 +83,3 @@ class Main:
         except ValueError:
             messagebox.showerror("Ошибка", "Неверный формат timestamp.")
             return None
-
-if __name__ == "__main__":
-    Main()
