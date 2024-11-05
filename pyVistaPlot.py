@@ -56,25 +56,8 @@ class Plot:
 
     def make_3d_graph(self, x_coordinate, y_coordinate, z_coordinates, n_wells):
         """Создание 3D модели скважин с реалистичными почвенными слоями и анимацией дождя"""
-
-        # Отрисовываем слои почвы один раз
-        if not self.soil_meshes:  # Если слои почвы еще не отрисованы
-            self.draw_static_soil_layers()
-
-        # Создаем смещение для каждой скважины, чтобы они не были в одной точке
-        offsets = np.linspace(-25, 25, n_wells)
-        colors = ['blue', 'cyan', 'purple', 'red', 'orange', 'yellow', 'green', 'pink', 'brown', 'gray']
-
-        for i in range(n_wells):
-            z_value = z_coordinates[i][0]
-            if np.isnan(z_value):
-                print(f"Недостаточно данных для отображения скважины {i + 1}, пропуск.")
-                continue
-
-            # Ограничиваем глубину скважин уровнем между confined и unconfined aquifer слоями
-            self.create_well(x_coordinate + offsets[i], y_coordinate, -15, colors[i % len(colors)])  # Используем -15 для ограниченного слоя
-
-        self.add_legend(colors)
+        self.draw_static_soil_layers()
+        self.create_wells(x_coordinate, y_coordinate, z_coordinates, n_wells)
 
         # Запуск анимации дождя и инфильтрации после создания 3D-модели
         self.plotter.open_gif("rain_with_puddles_and_streams.gif")
@@ -83,6 +66,18 @@ class Plot:
 
         # Показ модели
         self.plotter.show(interactive=True)
+
+    def create_wells(self, x_coordinate, y_coordinate, z_coordinates, n_wells):
+        """Создание визуализации скважин"""
+        offsets = np.linspace(-25, 25, n_wells)
+        colors = ['blue', 'cyan', 'purple', 'red', 'orange', 'yellow', 'green', 'pink', 'brown', 'gray']
+
+        for i in range(n_wells):
+            z_value = z_coordinates[i][0]
+            if np.isnan(z_value):
+                print(f"Недостаточно данных для отображения скважины {i + 1}, пропуск.")
+                continue
+            self.create_well(x_coordinate + offsets[i], y_coordinate, -15, colors[i % len(colors)])  # Используем -15 для ограниченного слоя
 
     def create_well(self, x, y, confined_depth, color):
         well_height = abs(confined_depth)
