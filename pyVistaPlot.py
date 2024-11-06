@@ -69,6 +69,7 @@ class Plot:
 
     def create_wells(self, x_coordinate, y_coordinate, z_coordinates, n_wells):
         """Создание визуализации скважин"""
+        # Создаем смещение для каждой скважины, чтобы они не были в одной точке
         offsets = np.linspace(-25, 25, n_wells)
         colors = ['blue', 'cyan', 'purple', 'red', 'orange', 'yellow', 'green', 'pink', 'brown', 'gray']
 
@@ -106,70 +107,115 @@ class Plot:
             y_values[i] += np.random.uniform(-amplitude, amplitude)
         return x_values, y_values, z_values
 
+    # REWORKED GIT BLAME VLADIMIR
     def animate_rain(self):
-        """Анимация дождя с эффектом инфильтрации, начиная с уровня Organic"""
-
-        # Начальные позиции капель дождя
-        drops = [{'position': [random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(5, 15)], 'is_stream': False} for _ in range(self.num_drops)]
-        
-        # Устанавливаем начальную глубину инфильтрации на нижней границе слоя Organic
-        organic_layer_depth = -self.layers[0]['height']  # Глубина нижней границы слоя Organic
-        infiltration_depth = organic_layer_depth  # Начинаем инфильтрацию на уровне Organic
-
-        # Инициализация объектов дождевых капель и луж
-        drop_meshes = [pv.Sphere(radius=0.1, center=drop['position']) for drop in drops]
-        drop_actors = [self.plotter.add_mesh(mesh, color='lightblue') for mesh in drop_meshes] # Отрисовка луж
-        puddle_discs = {}
+        """Основной метод анимации дождя и инфильтрации."""
+        # Инициализация капель дождя
+        drops = self.initialize_drops()
+        # Начальная глубина инфильтрации
+        infiltration_depth = self.layers[0]['height']
+        # Настройка начальных объектов капель дождя
+        drop_actors, drop_meshes = self.setup_drop_meshes(drops)
 
         for step in range(self.steps):
-            # Обновляем позиции дождевых капель
-            for i, drop in enumerate(drops):
-                x, y, z = drop['position']
-                z -= 0.2  # Капля падает каждый шаг
+            self.update_raindrops(drops, drop_meshes)  # Обновление позиций капель
+            self.update_puddles(drops)  # Обновление или создание луж
+            self.visualize_infiltration(infiltration_depth)  # Визуализация инфильтрации
+            infiltration_depth -= 0.1  # Увеличение глубины инфильтрации
+            self.plotter.write_frame()  # Запись текущего кадра в GIF
 
-                # Если капля достигла уровня луж, создаем или увеличиваем лужу
-                if z <= -5 and not drop['is_stream']:
-                    drop['is_stream'] = True
-                    puddle_key = (round(x), round(y))
+        # Чтобы не останавливалось
+        self.plotter.show(interactive=True)
 
-                    # Создаем или увеличиваем лужу на этой позиции
-                    if puddle_key in self.puddles:
-                        self.puddles[puddle_key] += 0.1  # Увеличиваем размер лужи
-                        # Обновляем существующую лужу
-                        puddle_discs[puddle_key].points[:, 2] = -5  # Установка на поверхность
-                        puddle_discs[puddle_key].scale(self.puddles[puddle_key])
-                    else:
-                        self.puddles[puddle_key] = 0.3   # Начальный размер новой лужи
-                        # Добавляем новую лужу
-                        puddle = pv.Disc(center=(x, y, -5), inner=0, outer=self.puddles[puddle_key], normal=(0, 0, 1))
-                        puddle_discs[puddle_key] = self.plotter.add_mesh(puddle, color="lightblue", opacity=0.6)
-                    continue
+    def initialize_drops(self):
+        """Создает начальные позиции для капель дождя."""
+        return [
+            {'position': [random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(5, 15)], 'is_stream': False}
+            for _ in range(self.num_drops)]
 
-                # Если капля в режиме "струи", обновляем её положение, чтобы создавать зигзагообразный поток вниз
-                if drop['is_stream']:
-                    x_values, y_values, z_values = self.create_zigzag_stream((x, y, z), length=5)
+    def setup_drop_meshes(self, drops):
+        """Создает и добавляет объекты капель дождя в сцену, возвращает списки капель и их объектов."""
+        drop_meshes = [pv.Sphere(radius=0.1, center=drop['position']) for drop in drops]
+        drop_actors = [self.plotter.add_mesh(mesh, color='lightblue') for mesh in drop_meshes]
+        return drop_actors, drop_meshes
 
-                    # Рисуем каждый сегмент потока и сохраняем акторы
-                    for j in range(len(z_values) - 1):
-                        line_segment = pv.Line(pointa=(x_values[j], y_values[j], z_values[j]),
-                                            pointb=(x_values[j + 1], y_values[j + 1], z_values[j + 1]))
-                        self.plotter.add_mesh(line_segment, color='lightblue', line_width=3)
-                    
-                    if z <= -20:
-                        drop['is_stream'] = False
-
-                # Обновляем положение капли, изменяя точки сфер
+    def update_raindrops(self, drops, drop_meshes):
+        """Обновляет позиции капель дождя, создает потоки если достигнут уровень луж."""
+        for i, drop in enumerate(drops):
+            x, y, z = drop['position']
+            z -= 0.2  # Капля падает каждый шаг
+            if drop['is_stream']:
+                self.create_stream(drop, x, y, z)
+            else:
                 drop_meshes[i].points = pv.Sphere(radius=0.1, center=(x, y, z)).points
-                # Обновляем положение капли
-                drop['position'] = [x, y, z]
+            drop['position'] = [x, y, z]
 
-            # Визуализация инфильтрации под лужами, начиная с уровня Organic и постепенно опускаясь
-            for (px, py), size in self.puddles.items():
-                infiltration = pv.Disc(center=(px, py, infiltration_depth), inner=0, outer=size + 0.2, normal=(0, 0, 1))
-                self.plotter.add_mesh(infiltration, color="lightblue", opacity=0.3)
+    # REWORKED GIT BLAME VLADIMIR
+    def create_stream(self, drop, x, y, z):
+        """Создает и визуализирует поток из капли дождя с расширяющимся эффектом."""
+        x_values, y_values, z_values = self.create_zigzag_stream((x, y, z), length=3,
+                                                                 amplitude=0.4)  # Увеличенная амплитуда для большего отклонения
+        branch_step = 5  # Большой шаг для снижения количества фрагментов
 
-            # Увеличиваем глубину инфильтрации для следующего кадра
-            infiltration_depth -= 0.1
+        for j in range(0, len(z_values) - branch_step, branch_step):
+            # Начальные и конечные точки сегмента потока
+            pointa = (x_values[j], y_values[j], z_values[j])
+            pointb = (x_values[j + branch_step] + np.random.uniform(-0.3, 0.3),
+                      y_values[j + branch_step] + np.random.uniform(-0.3, 0.3),
+                      z_values[j + branch_step])
 
-            # Запись текущего кадра в GIF
-            self.plotter.write_frame()
+            # Создаем основной сегмент потока с уменьшенной шириной
+            line_segment = pv.Line(pointa=pointa, pointb=pointb)
+            self.plotter.add_mesh(line_segment, color='lightblue', line_width=2)  # Более тонкая линия
+
+            # Добавляем боковые "ветви" с увеличенным смещением
+            branch_offset = np.random.uniform(-0.8, 0.8)  # Значительное смещение для расширяющегося эффекта
+            branch_a = pv.Line(pointa=pointa, pointb=(pointb[0] + branch_offset, pointb[1], pointb[2] - 0.1))
+            branch_b = pv.Line(pointa=pointa, pointb=(pointb[0] - branch_offset, pointb[1], pointb[2] - 0.1))
+
+            # Визуализация тонких "ветвей"
+            self.plotter.add_mesh(branch_a, color='lightblue', line_width=1)
+            self.plotter.add_mesh(branch_b, color='lightblue', line_width=1)
+
+            # Когда поток достигает уровня -20, направляем его в стороны
+            if pointb[2] <= -15:
+                lateral_offset = np.random.uniform(0.5, 10.0)  # Боковое расширение на нижнем уровне
+                lateral_a = pv.Line(pointa=pointb, pointb=(pointb[0] + lateral_offset, pointb[1], pointb[2]))
+                lateral_b = pv.Line(pointa=pointb, pointb=(pointb[0] - lateral_offset, pointb[1], pointb[2]))
+                self.plotter.add_mesh(lateral_a, color='lightblue', line_width=1)
+                self.plotter.add_mesh(lateral_b, color='lightblue', line_width=1)
+
+        # Завершение потока
+        if z <= -20:
+            drop['is_stream'] = False
+
+    def update_puddles(self, drops):
+        """Создает и увеличивает лужи на поверхности при достижении каплями нужного уровня."""
+        for drop in drops:
+            if not drop['is_stream'] and drop['position'][2] <= -5:
+                drop['is_stream'] = True
+                x, y = round(drop['position'][0]), round(drop['position'][1])
+                puddle_key = (x, y)
+                if puddle_key in self.puddles:
+                    self.puddles[puddle_key] += 0.1
+                    self.update_puddle(puddle_key)
+                else:
+                    self.create_puddle(puddle_key)
+
+    def create_puddle(self, puddle_key):
+        """Создает новую лужу на поверхности."""
+        x, y = puddle_key
+        self.puddles[puddle_key] = 0.3
+        puddle = pv.Disc(center=(x, y, 0), inner=0, outer=self.puddles[puddle_key], normal=(0, 0, 1))
+        self.plotter.add_mesh(puddle, color="lightblue", opacity=0.6)
+
+    def update_puddle(self, puddle_key):
+        """Обновляет существующую лужу, увеличивая её размер."""
+        puddle_discs = self.puddles[puddle_key]
+        puddle_discs.scale(self.puddles[puddle_key])
+
+    def visualize_infiltration(self, infiltration_depth):
+        """Создает и визуализирует уровень инфильтрации под лужами."""
+        for (px, py), size in self.puddles.items():
+            infiltration = pv.Disc(center=(px, py, infiltration_depth), inner=0, outer=size + 0.2, normal=(0, 0, 1))
+            self.plotter.add_mesh(infiltration, color="lightblue", opacity=0.3)
