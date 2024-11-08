@@ -38,8 +38,8 @@ class Main:
         self.animate_button.pack(pady=5)
 
         # Кнопка сохранения
-        self.save_button = tk.Button(self.left_frame, text="Сохранить модель", command=self.save_model)
-        self.save_button.pack(pady=5)
+        # self.save_button = tk.Button(self.left_frame, text="Сохранить модель", command=self.save_model)
+        # self.save_button.pack(pady=5)
 
         self.root.mainloop()
 
@@ -92,13 +92,7 @@ class Main:
                 messagebox.showerror("Ошибка", f"Анимация прервана: {e}")
                 break
 
-    # def save_model(self):
-    #     """Сохранение текущей 3D модели в файл."""
-    #     try:
-    #         self.plot.save_current_model()
-    #         messagebox.showinfo("Успех", "Модель успешно сохранена!")
-    #     except Exception as e:
-    #         messagebox.showerror("Ошибка", f"Не удалось сохранить модель: {e}")
+
 
     def data_is_loaded(self):
         """Проверка, загружены ли данные."""

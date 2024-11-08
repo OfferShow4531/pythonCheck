@@ -179,7 +179,7 @@ class Plot:
 
             # Когда поток достигает уровня -20, направляем его в стороны
             if pointb[2] <= -15:
-                lateral_offset = np.random.uniform(0.5, 10.0)  # Боковое расширение на нижнем уровне
+                lateral_offset = np.random.uniform(0.2, 5.0)  # Боковое расширение на нижнем уровне
                 lateral_a = pv.Line(pointa=pointb, pointb=(pointb[0] + lateral_offset, pointb[1], pointb[2]))
                 lateral_b = pv.Line(pointa=pointb, pointb=(pointb[0] - lateral_offset, pointb[1], pointb[2]))
                 self.plotter.add_mesh(lateral_a, color='lightblue', line_width=1)
@@ -189,15 +189,18 @@ class Plot:
         if z <= -20:
             drop['is_stream'] = False
 
+    # TODO FIX PUDDLES CREATION
     def update_puddles(self, drops):
         """Создает и увеличивает лужи на поверхности при достижении каплями нужного уровня."""
         for drop in drops:
+            # Проверка на то что капля дошла до уровня луж
             if not drop['is_stream'] and drop['position'][2] <= -5:
                 drop['is_stream'] = True
                 x, y = round(drop['position'][0]), round(drop['position'][1])
                 puddle_key = (x, y)
+
                 if puddle_key in self.puddles:
-                    self.puddles[puddle_key] += 0.1
+                    self.puddles[puddle_key] += 0.2
                     self.update_puddle(puddle_key)
                 else:
                     self.create_puddle(puddle_key)
@@ -205,7 +208,8 @@ class Plot:
     def create_puddle(self, puddle_key):
         """Создает новую лужу на поверхности."""
         x, y = puddle_key
-        self.puddles[puddle_key] = 0.3
+        # Здесь можно поменять размер
+        self.puddles[puddle_key] = 1
         puddle = pv.Disc(center=(x, y, 0), inner=0, outer=self.puddles[puddle_key], normal=(0, 0, 1))
         self.plotter.add_mesh(puddle, color="lightblue", opacity=0.6)
 
