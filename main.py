@@ -1,11 +1,13 @@
 import tkinter as tk
 from dataPreprocessing import DataPreprocessing
-from pyVistaPlot import Plot
+from pyVistaPlot import Plot3D
+from pyVista2DPlot import Plot2D
 
 class Main:
     def __init__(self):
         self.dataPreproc = DataPreprocessing()
-        self.plot = Plot()
+        # self.plot = Plot3D()
+        # self.plot2D = Plot2D()
         
         # Создание главного окна
         self.root = tk.Tk()
@@ -31,6 +33,9 @@ class Main:
         # Кнопка для создания 3D модели
         self.create_graph_button = tk.Button(self.left_frame, text="Создать 3D модель", command=self.create_model)
         self.create_graph_button.pack(pady=5)
+        
+        self.create_2d_button = tk.Button(self.left_frame, text="Создать 2D модель", command=self.create_2d_model)
+        self.create_2d_button.pack(pady=5)
 
         # Кнопка для анимации Timestamp
         self.animate_button = tk.Button(self.left_frame, text="Анимация", command=self.animate_model)
@@ -66,7 +71,16 @@ class Main:
         timestamp = self.timestamp_var.get()
         if timestamp and timestamp != "Выберите timestamp":
             x, y, z, n_wells = self.dataPreproc.get_filtered_data(timestamp)
-            self.plot.make_3d_graph(x, y, z, n_wells)
+            self.plot.make_3d_model(x, y, z, n_wells)
+        else:
+            print("Выберите timestamp для создания модели")
+    
+    def create_2d_model(self):
+        """Создает 3D модель для выбранного Timestamp"""
+        timestamp = self.timestamp_var.get()
+        if timestamp and timestamp != "Выберите timestamp":
+            x, y, z, n_wells = self.dataPreproc.get_filtered_data(timestamp)
+            self.plot2D.make_2d_projection(x, y, z, n_wells)
         else:
             print("Выберите timestamp для создания модели")
 
